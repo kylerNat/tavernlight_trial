@@ -1,10 +1,7 @@
-function do_sth_with_PlayerParty(playerId, membername)
-    player = Player(playerId)
+function removeFromPlayerPartyByName(playerId, membername)
+    local player = Player(playerId)
     local party = player:getParty()
 
-    for k,v in pairs(party:getMembers()) do
-        if v == Player(membername) then
-            party:removeMember(Player(membername))
-        end
-    end
+    -- looping over members is unecessary since removeMember already makes sure the member is in the party before removing them
+    party:removeMember(Player(membername))
 end
