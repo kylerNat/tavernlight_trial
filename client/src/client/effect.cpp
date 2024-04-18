@@ -45,12 +45,12 @@ void Effect::drawEffect(const Point& dest, float scaleFactor, bool animate, int 
             animationPhase = std::min<int>((int)(m_animationTimer.ticksElapsed() / ticks), getAnimationPhases() - 1);
         }
     }
-
-    int xPattern = offsetX % getNumPatternX();
+    Point patternOffset = rawGetThingType()->getPatternOffset();
+    int xPattern = (offsetX + patternOffset.x) % getNumPatternX();
     if(xPattern < 0)
         xPattern += getNumPatternX();
 
-    int yPattern = offsetY % getNumPatternY();
+    int yPattern = (offsetY + patternOffset.y) % getNumPatternY();
     if(yPattern < 0)
         yPattern += getNumPatternY();
 

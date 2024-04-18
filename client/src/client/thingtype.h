@@ -87,6 +87,7 @@ enum ThingAttr : uint8 {
     ThingAttrWrapable         = 35,
     ThingAttrUnwrapable       = 36,
     ThingAttrTopEffect        = 37,
+    ThingAttrPatternOffset    = 38,
 
     // additional
     ThingAttrOpacity          = 100,
@@ -118,6 +119,16 @@ struct Light {
     Light() { intensity = 0; color = 215; }
     uint8 intensity;
     uint8 color;
+};
+
+struct FrameGroupData {
+    Size m_size;
+    int m_groupAnimationPhases;
+    int m_exactSize;
+    int m_realSize;
+    int m_numPatternX, m_numPatternY, m_numPatternZ;
+    int m_layers;
+    int m_spriteCount;
 };
 
 class ThingType : public LuaObject
@@ -152,6 +163,9 @@ public:
     Point getDisplacement() { return m_displacement; }
     int getDisplacementX() { return getDisplacement().x; }
     int getDisplacementY() { return getDisplacement().y; }
+    Point getPatternOffset() { return m_patternOffset; }
+    int getPatternOffsetX() { return getPatternOffset().x; }
+    int getPatternOffsetY() { return getPatternOffset().y; }
     int getElevation() { return m_elevation; }
 
     int getGroundSpeed() { return m_attribs.get<uint16>(ThingAttrGround); }
@@ -208,6 +222,33 @@ public:
     bool isNotPreWalkable() { return m_attribs.has(ThingAttrNotPreWalkable); }
     void setPathable(bool var);
 
+    /* This was temporary code used to modify the dat file, leaving it as a comment to document what I did
+    void makeEffect77(ThingTypePtr type) {
+        m_category = type->m_category;
+        m_id = type->m_id;
+        m_null = type->m_null;
+        m_attribs = type->m_attribs;
+        m_displacement = type->m_displacement;
+        m_elevation = type->m_elevation;
+        m_opacity = type->m_opacity;
+        m_customImage = type->m_customImage;
+        m_frameGroupData[0] = type->m_frameGroupData[0];
+        m_frameGroupData[1] = type->m_frameGroupData[1];
+        m_animator = type->m_animator;
+        m_animatorIdle = type->m_animatorIdle;
+        m_animationPhases = type->m_animationPhases;
+        m_frameGroupCount = type->m_frameGroupCount;
+        m_spritesIndex = type->m_spritesIndex;
+        m_textures = type->m_textures;
+        m_texturesFramesRects = type->m_texturesFramesRects;
+        m_texturesFramesOriginRects = type->m_texturesFramesOriginRects;
+        m_texturesFramesOffsets = type->m_texturesFramesOffsets;
+
+        m_id = 77;
+        m_patternOffset = Point(1, 0);
+        m_attribs.set(ThingAttrPatternOffset, true);
+    } */
+
 private:
     const TexturePtr& getTexture(int animationPhase);
     Size getBestTextureDimension(int w, int h, int count);
@@ -219,17 +260,28 @@ private:
     bool m_null;
     stdext::dynamic_storage<uint8> m_attribs;
 
-    Size m_size;
     Point m_displacement;
-    AnimatorPtr m_animator;
-    int m_animationPhases;
-    int m_exactSize;
-    int m_realSize;
-    int m_numPatternX, m_numPatternY, m_numPatternZ;
-    int m_layers;
+    Point m_patternOffset;
     int m_elevation;
     float m_opacity;
     std::string m_customImage;
+
+    union {
+        struct {
+            Size m_size;
+            int m_groupAnimationPhases;
+            int m_exactSize;
+            int m_realSize;
+            int m_numPatternX, m_numPatternY, m_numPatternZ;
+            int m_layers;
+            int m_spriteCount;
+        };
+        FrameGroupData m_frameGroupData[2];
+    };
+    AnimatorPtr m_animator;
+    AnimatorPtr m_animatorIdle;
+    int m_animationPhases;
+    int m_frameGroupCount;
 
     std::vector<int> m_spritesIndex;
     std::vector<TexturePtr> m_textures;

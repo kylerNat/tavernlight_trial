@@ -45,6 +45,8 @@ ThingType::ThingType()
     m_layers = 0;
     m_elevation = 0;
     m_opacity = 1.0f;
+    m_animatorIdle = nullptr;
+    m_frameGroupCount = 0;
 }
 
 void ThingType::serialize(const FileStreamPtr& fin)
@@ -54,33 +56,41 @@ void ThingType::serialize(const FileStreamPtr& fin)
             continue;
 
         int attr = i;
-        if(g_game.getClientVersion() >= 780) {
+        if (g_game.getClientVersion() >= 1000) {
+            if (attr == ThingAttrNoMoveAnimation)
+                attr = 16;
+            else if (attr >= 16)
+                attr += 1;
+        } else if(g_game.getClientVersion() >= 780) {
             if(attr == ThingAttrChargeable)
                 attr = ThingAttrWritable;
             else if(attr >= ThingAttrWritable)
                 attr += 1;
-        } else if(g_game.getClientVersion() >= 1000) {
-            if(attr == ThingAttrNoMoveAnimation)
-                attr = 16;
-            else if(attr >= ThingAttrPickupable)
-                attr += 1;
         }
-
         fin->addU8(attr);
-        switch(attr) {
+
+        //there was previously a bug here where attr was used instead of i,
+        //but since the value of attr is changed from the internal enum values for
+        //backwards compatibility that meant the wrong attribute index was used
+        switch(i) {
             case ThingAttrDisplacement: {
                 fin->addU16(m_displacement.x);
                 fin->addU16(m_displacement.y);
                 break;
             }
+            case ThingAttrPatternOffset: {
+                fin->addU16(m_patternOffset.x);
+                fin->addU16(m_patternOffset.y);
+                break;
+            }
             case ThingAttrLight: {
-                Light light = m_attribs.get<Light>(attr);
+                Light light = m_attribs.get<Light>(i);
                 fin->addU16(light.intensity);
                 fin->addU16(light.color);
                 break;
             }
             case ThingAttrMarket: {
-                MarketData market = m_attribs.get<MarketData>(attr);
+                MarketData market = m_attribs.get<MarketData>(i);
                 fin->addU16(market.category);
                 fin->addU16(market.tradeAs);
                 fin->addU16(market.showAs);
@@ -97,7 +107,7 @@ void ThingType::serialize(const FileStreamPtr& fin)
             case ThingAttrMinimapColor:
             case ThingAttrCloth:
             case ThingAttrLensHelp:
-                fin->addU16(m_attribs.get<uint16>(attr));
+                fin->addU16(m_attribs.get<uint16>(i));
                 break;
             default:
                 break;
@@ -105,29 +115,43 @@ void ThingType::serialize(const FileStreamPtr& fin)
     }
     fin->addU8(ThingLastAttr);
 
-    fin->addU8(m_size.width());
-    fin->addU8(m_size.height());
-
-    if(m_size.width() > 1 || m_size.height() > 1)
-        fin->addU8(m_realSize);
-
-    fin->addU8(m_layers);
-    fin->addU8(m_numPatternX);
-    fin->addU8(m_numPatternY);
-    fin->addU8(m_numPatternZ);
-    fin->addU8(m_animationPhases);
-
-    if(g_game.getFeature(Otc::GameEnhancedAnimations)) {
-        if(m_animationPhases > 1 && m_animator != nullptr)  {
-            m_animator->serialize(fin);
-        }
+    bool hasFrameGroups = (m_category == ThingCategoryCreature && g_game.getFeature(Otc::GameIdleAnimations));
+    if(hasFrameGroups) {
+        fin->addU8(m_frameGroupCount);
     }
 
-    for(int i: m_spritesIndex) {
-        if(g_game.getFeature(Otc::GameSpritesU32))
-            fin->addU32(i);
-        else
-            fin->addU16(i);
+    int totalSpritesCount = 0;
+    for (int i = 0; i < m_frameGroupCount; i++) {
+        FrameGroupData *group = m_frameGroupData + i;
+        if (hasFrameGroups)
+            fin->addU8(i);
+
+        fin->addU8(group->m_size.width());
+        fin->addU8(group->m_size.height());
+
+        if (group->m_size.width() > 1 || group->m_size.height() > 1)
+            fin->addU8(group->m_realSize);
+
+        fin->addU8(group->m_layers);
+        fin->addU8(group->m_numPatternX);
+        fin->addU8(group->m_numPatternY);
+        if (g_game.getClientVersion() >= 755)
+            fin->addU8(group->m_numPatternZ);
+        fin->addU8(group->m_groupAnimationPhases);
+
+        AnimatorPtr animator = i==0 ? m_animator : m_animatorIdle;
+        if (group->m_groupAnimationPhases > 1 && g_game.getFeature(Otc::GameEnhancedAnimations) && animator != nullptr) {
+            animator->serialize(fin);
+        }
+
+        for (int j = totalSpritesCount; j < totalSpritesCount+group->m_spriteCount; j++) {
+            if (g_game.getFeature(Otc::GameSpritesU32))
+                fin->addU32(m_spritesIndex[j]);
+            else
+                fin->addU16(m_spritesIndex[j]);
+        }
+
+        totalSpritesCount += group->m_spriteCount;
     }
 }
 
@@ -226,6 +250,12 @@ void ThingType::unserialize(uint16 clientId, ThingCategory category, const FileS
                 m_attribs.set(attr, true);
                 break;
             }
+            case ThingAttrPatternOffset: {
+                m_patternOffset.x = fin->getU16();
+                m_patternOffset.y = fin->getU16();
+                m_attribs.set(attr, true);
+                break;
+            }
             case ThingAttrLight: {
                 Light light;
                 light.intensity = fin->getU16();
@@ -246,7 +276,7 @@ void ThingType::unserialize(uint16 clientId, ThingCategory category, const FileS
             }
             case ThingAttrElevation: {
                 m_elevation = fin->getU16();
-                m_attribs.set(attr, m_elevation);
+                m_attribs.set(attr, uint16(m_elevation));
                 break;
             }
             case ThingAttrUsable:
@@ -269,12 +299,12 @@ void ThingType::unserialize(uint16 clientId, ThingCategory category, const FileS
             m_id, m_category, count, attr));
 
     bool hasFrameGroups = (category == ThingCategoryCreature && g_game.getFeature(Otc::GameIdleAnimations));
-    uint8 groupCount = hasFrameGroups ? fin->getU8() : 1;
+    m_frameGroupCount = hasFrameGroups ? fin->getU8() : 1;
 
     m_animationPhases = 0;
     int totalSpritesCount = 0;
 
-    for(int i = 0; i < groupCount; ++i) {
+    for(int i = 0; i < m_frameGroupCount; ++i) {
         uint8 frameGroupType = FrameGroupDefault;
         if(hasFrameGroups)
             frameGroupType = fin->getU8();
@@ -296,25 +326,30 @@ void ThingType::unserialize(uint16 clientId, ThingCategory category, const FileS
             m_numPatternZ = fin->getU8();
         else
             m_numPatternZ = 1;
-        
-        int groupAnimationsPhases = fin->getU8();
-        m_animationPhases += groupAnimationsPhases;
 
-        if(groupAnimationsPhases > 1 && g_game.getFeature(Otc::GameEnhancedAnimations)) {
+        m_groupAnimationPhases = fin->getU8();
+        m_animationPhases += m_groupAnimationPhases;
+
+        if(m_groupAnimationPhases > 1 && g_game.getFeature(Otc::GameEnhancedAnimations)) {
             m_animator = AnimatorPtr(new Animator);
-            m_animator->unserialize(groupAnimationsPhases, fin);
+            m_animator->unserialize(m_groupAnimationPhases, fin);
         }
 
-        int totalSprites = m_size.area() * m_layers * m_numPatternX * m_numPatternY * m_numPatternZ * groupAnimationsPhases;
+        m_spriteCount = m_size.area() * m_layers * m_numPatternX * m_numPatternY * m_numPatternZ * m_groupAnimationPhases;
 
-        if((totalSpritesCount+totalSprites) > 4096)
+        if((totalSpritesCount+m_spriteCount) > 4096)
             stdext::throw_exception("a thing type has more than 4096 sprites");
 
-        m_spritesIndex.resize((totalSpritesCount+totalSprites));
-        for(int j = totalSpritesCount; j < (totalSpritesCount+totalSprites); j++)
+        m_spritesIndex.resize((totalSpritesCount+m_spriteCount));
+        for(int j = totalSpritesCount; j < (totalSpritesCount+m_spriteCount); j++)
             m_spritesIndex[j] = g_game.getFeature(Otc::GameSpritesU32) ? fin->getU32() : fin->getU16();
 
-        totalSpritesCount += totalSprites;
+        if(i == 0 && m_frameGroupCount > 1) {
+            m_animatorIdle = m_animator;
+            m_frameGroupData[1] = m_frameGroupData[0];
+        }
+
+        totalSpritesCount += m_spriteCount;
     }
 
     m_textures.resize(m_animationPhases);

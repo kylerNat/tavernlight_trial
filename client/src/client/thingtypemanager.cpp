@@ -127,6 +127,11 @@ bool ThingTypeManager::loadDat(std::string file)
             }
         }
 
+        /* This was temporary code used to modify the dat file, leaving it as a comment to document what I did
+        ThingType *t = new ThingType;
+        t->makeEffect77(m_thingTypes[ThingCategoryEffect][43]);
+        m_thingTypes[ThingCategoryEffect][77] = t; */
+        
         m_datLoaded = true;
         g_lua.callGlobalField("g_things", "onLoadDat", file);
         return true;

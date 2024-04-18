@@ -497,6 +497,9 @@ void Client::registerLuaFunctions()
     g_lua.bindClassMemberFunction<ThingType>("getDisplacement", &ThingType::getDisplacement);
     g_lua.bindClassMemberFunction<ThingType>("getDisplacementX", &ThingType::getDisplacementX);
     g_lua.bindClassMemberFunction<ThingType>("getDisplacementY", &ThingType::getDisplacementY);
+    g_lua.bindClassMemberFunction<ThingType>("getPatternOffset", &ThingType::getPatternOffset);
+    g_lua.bindClassMemberFunction<ThingType>("getPatternOffsetX", &ThingType::getPatternOffsetX);
+    g_lua.bindClassMemberFunction<ThingType>("getPatternOffsetY", &ThingType::getPatternOffsetY);
     g_lua.bindClassMemberFunction<ThingType>("getExactSize", &ThingType::getExactSize);
     g_lua.bindClassMemberFunction<ThingType>("getRealSize", &ThingType::getRealSize);
     g_lua.bindClassMemberFunction<ThingType>("getLayers", &ThingType::getLayers);
