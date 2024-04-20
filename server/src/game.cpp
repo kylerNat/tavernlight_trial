@@ -792,6 +792,41 @@ void Game::playerMoveCreature(Player* player, Creature* movingCreature, const Po
 	}
 }
 
+//pulling out this function from internalMoveCreatures so we can use it for the dash
+bool Game::checkVerticalMovement(Position currentPos, Position& destPos, uint32_t& flags)
+{
+	//try to go up
+	if(currentPos.z != 8 && map.getTile(currentPos)->hasHeight(3)) {
+		Tile* tmpTile = map.getTile(currentPos.x, currentPos.y, currentPos.getZ() - 1);
+		if(tmpTile == nullptr || (tmpTile->getGround() == nullptr && !tmpTile->hasFlag(TILESTATE_BLOCKSOLID))) {
+			tmpTile = map.getTile(destPos.x, destPos.y, destPos.getZ() - 1);
+			if(tmpTile && tmpTile->getGround() && !tmpTile->hasFlag(TILESTATE_BLOCKSOLID)) {
+				flags |= FLAG_IGNOREBLOCKITEM | FLAG_IGNOREBLOCKCREATURE;
+
+				if(!tmpTile->hasFlag(TILESTATE_FLOORCHANGE)) {					
+					destPos.z--;
+					return true;
+				}
+			}
+		}
+	}
+
+	//try to go down
+	if(currentPos.z != 7 && currentPos.z == destPos.z) {
+		Tile* tmpTile = map.getTile(destPos.x, destPos.y, destPos.z);
+		if(tmpTile == nullptr || (tmpTile->getGround() == nullptr && !tmpTile->hasFlag(TILESTATE_BLOCKSOLID))) {
+			tmpTile = map.getTile(destPos.x, destPos.y, destPos.z + 1);
+			if(tmpTile && tmpTile->hasHeight(3)) {
+				flags |= FLAG_IGNOREBLOCKITEM | FLAG_IGNOREBLOCKCREATURE;
+				destPos.z++;
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 ReturnValue Game::internalMoveCreature(Creature* creature, Direction direction, uint32_t flags /*= 0*/)
 {
 	creature->setLastPosition(creature->getPosition());
@@ -801,33 +836,8 @@ ReturnValue Game::internalMoveCreature(Creature* creature, Direction direction, 
 
 	bool diagonalMovement = (direction & DIRECTION_DIAGONAL_MASK) != 0;
 	if (player && !diagonalMovement) {
-		//try to go up
-		if (currentPos.z != 8 && creature->getTile()->hasHeight(3)) {
-			Tile* tmpTile = map.getTile(currentPos.x, currentPos.y, currentPos.getZ() - 1);
-			if (tmpTile == nullptr || (tmpTile->getGround() == nullptr && !tmpTile->hasFlag(TILESTATE_BLOCKSOLID))) {
-				tmpTile = map.getTile(destPos.x, destPos.y, destPos.getZ() - 1);
-				if (tmpTile && tmpTile->getGround() && !tmpTile->hasFlag(TILESTATE_BLOCKSOLID)) {
-					flags |= FLAG_IGNOREBLOCKITEM | FLAG_IGNOREBLOCKCREATURE;
-
-					if (!tmpTile->hasFlag(TILESTATE_FLOORCHANGE)) {
-						player->setDirection(direction);
-						destPos.z--;
-					}
-				}
-			}
-		}
-
-		//try to go down
-		if (currentPos.z != 7 && currentPos.z == destPos.z) {
-			Tile* tmpTile = map.getTile(destPos.x, destPos.y, destPos.z);
-			if (tmpTile == nullptr || (tmpTile->getGround() == nullptr && !tmpTile->hasFlag(TILESTATE_BLOCKSOLID))) {
-				tmpTile = map.getTile(destPos.x, destPos.y, destPos.z + 1);
-				if (tmpTile && tmpTile->hasHeight(3)) {
-					flags |= FLAG_IGNOREBLOCKITEM | FLAG_IGNOREBLOCKCREATURE;
-					player->setDirection(direction);
-					destPos.z++;
-				}
-			}
+		if(checkVerticalMovement(currentPos, destPos, flags)) {
+			creature->setDirection(direction);
 		}
 	}
 
@@ -846,7 +856,7 @@ ReturnValue Game::internalMoveCreature(Creature& creature, Tile& toTile, uint32_
 		return ret;
 	}
 
-	map.moveCreature(creature, toTile);
+	map.moveCreature(creature, toTile, hasBitSet(FLAG_FORCETELEPORT, flags));
 	if (creature.getParent() != &toTile) {
 		return RETURNVALUE_NOERROR;
 	}
@@ -859,7 +869,7 @@ ReturnValue Game::internalMoveCreature(Creature& creature, Tile& toTile, uint32_
 	uint32_t n = 0;
 
 	while ((subCylinder = toCylinder->queryDestination(index, creature, &toItem, flags)) != toCylinder) {
-		map.moveCreature(creature, *subCylinder);
+		map.moveCreature(creature, *subCylinder, hasBitSet(FLAG_FORCETELEPORT, flags));
 
 		if (creature.getParent() != subCylinder) {
 			//could happen if a script move the creature
@@ -3301,6 +3311,66 @@ void Game::playerTurn(uint32_t playerId, Direction dir)
 
 	player->resetIdleTime();
 	internalCreatureTurn(player, dir);
+}
+
+void Game::playerDashStep(uint32_t playerId, uint32_t dashDistance, uint32_t stepDistance)
+{
+	Player* player = getPlayerByID(playerId);
+	if (!player) {
+		return;
+	}
+
+	if (stepDistance > dashDistance) stepDistance = dashDistance;
+
+	Position pos = player->position;
+	int steps = 0;
+	uint32_t flags = 0U;
+	for(; steps < stepDistance; ++steps) {
+		Position nextPos = getNextPosition(player->getDirection(), pos);
+		if(!checkVerticalMovement(pos, nextPos, flags)) {
+			Tile* nextTile = g_game.map.getTile(nextPos);
+			if(!nextTile || nextTile->queryAdd(0, *player, 1, flags) != RETURNVALUE_NOERROR)
+				break;
+		}
+		pos = nextPos;
+	}
+	player->resetIdleTime();
+
+	Tile* tile = g_game.map.getTile(pos);
+	if (steps > 0 && tile) {
+		//using internalMoveCreature instead of internalTeleport so that it works with stairs
+		flags |= FLAG_FORCETELEPORT;
+		internalMoveCreature(*player, *tile, flags);
+	}
+	if (steps < stepDistance) {
+		player->sendCancelMessage(RETURNVALUE_CANNOTDASH);
+	}
+	dashDistance -= steps;
+	if (dashDistance > 0 && steps == stepDistance) {
+		uint32_t delay = 50;
+		SchedulerTask* task = createSchedulerTask(delay, std::bind(&Game::playerDashStep, this, player->getID(), dashDistance, 1));
+		player->setNextActionTask(task);
+	} else {
+		player->setNextActionTask(nullptr);
+	}
+}
+
+void Game::playerDash(uint32_t playerId)
+{
+	Player* player = getPlayerByID(playerId);
+	if (!player) {
+		return;
+	}
+
+	const uint32_t dashDistance = 6;
+	const uint32_t firstStep = 3;
+	playerDashStep(playerId, dashDistance, firstStep);
+
+	SpectatorVec spectators;
+	map.getSpectators(spectators, player->getPosition(), true, true);
+	for (Creature* spectator : spectators) {
+		spectator->getPlayer()->sendCreatureEffect(player, CONST_CE_DASH, 300);
+	}
 }
 
 void Game::playerRequestOutfit(uint32_t playerId)

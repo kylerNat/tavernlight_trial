@@ -170,6 +170,7 @@ public:
     void autoWalk(std::vector<Otc::Direction> dirs);
     void forceWalk(Otc::Direction direction);
     void turn(Otc::Direction direction);
+    void dash();
     void stop();
 
     // item related

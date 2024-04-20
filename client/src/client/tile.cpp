@@ -110,6 +110,19 @@ void Tile::draw(const Point& dest, float scaleFactor, int drawFlags, LightView *
     // creatures
     if(drawFlags & Otc::DrawCreatures) {
         if(animate) {
+            // creature effects
+            for(auto it = m_creatureEffects.begin(); it != m_creatureEffects.end();) {
+                CreaturePtr& creature = *it;
+                Point pos = Point(dest.x + ((creature->getPosition().x - m_position.x) * Otc::TILE_PIXELS - m_drawElevation)*scaleFactor,
+                                  dest.y + ((creature->getPosition().y - m_position.y) * Otc::TILE_PIXELS - m_drawElevation)*scaleFactor);
+                bool effectActive = creature->drawEffect(dest - m_drawElevation * scaleFactor, pos, scaleFactor, animate);
+                if(!effectActive) {
+                    it = m_creatureEffects.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+
             for(const CreaturePtr& creature : m_walkingCreatures) {
                 creature->draw(Point(dest.x + ((creature->getPosition().x - m_position.x)*Otc::TILE_PIXELS - m_drawElevation)*scaleFactor,
                                      dest.y + ((creature->getPosition().y - m_position.y)*Otc::TILE_PIXELS - m_drawElevation)*scaleFactor), scaleFactor, animate, lightView);
@@ -143,6 +156,16 @@ void Tile::draw(const Point& dest, float scaleFactor, int drawFlags, LightView *
         light.intensity = 1;
         lightView->addLightSource(dest + Point(16,16) * scaleFactor, scaleFactor, light);
     }
+}
+
+void Tile::addCreatureEffect(CreaturePtr creature)
+{
+    for(const CreaturePtr& existingCreature : m_creatureEffects) {
+        if(creature == existingCreature) {
+            return;
+        }
+    }
+    m_creatureEffects.push_back(creature);
 }
 
 void Tile::clean()
@@ -555,7 +578,7 @@ bool Tile::isEmpty()
 
 bool Tile::isDrawable()
 {
-    return !m_things.empty() || !m_walkingCreatures.empty() || !m_effects.empty();
+    return !m_things.empty() || !m_walkingCreatures.empty() || !m_effects.empty() || !m_creatureEffects.empty();
 }
 
 bool Tile::mustHookEast()

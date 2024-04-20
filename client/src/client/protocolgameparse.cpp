@@ -395,6 +395,9 @@ void ProtocolGame::parseMessage(const InputMessagePtr& msg)
             case Proto::GameServerChangeMapAwareRange:
                 parseChangeMapAwareRange(msg);
                 break;
+            case Proto::GameServerCreatureEffect:
+                parseCreatureEffect(msg);
+                break;
             default:
                 stdext::throw_exception(stdext::format("unhandled opcode %d", (int)opcode));
                 break;
@@ -1131,6 +1134,19 @@ void ProtocolGame::parseCreatureMark(const InputMessagePtr& msg)
     CreaturePtr creature = g_map.getCreatureById(id);
     if(creature)
         creature->addTimedSquare(color);
+    else
+        g_logger.traceError("could not get creature");
+}
+
+void ProtocolGame::parseCreatureEffect(const InputMessagePtr& msg)
+{
+    uint id = msg->getU32();
+    uint8 type = msg->getU8();
+    uint16 duration = msg->getU16();
+
+    CreaturePtr creature = g_map.getCreatureById(id);
+    if (creature)
+        creature->setEffect(type, duration);
     else
         g_logger.traceError("could not get creature");
 }

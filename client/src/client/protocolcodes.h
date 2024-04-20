@@ -66,6 +66,7 @@ namespace Proto {
         // NOTE: add any custom opcodes in this range
         // 51 - 99
         GameServerChangeMapAwareRange       = 51,
+        GameServerCreatureEffect            = 52,
 
         // original tibia ONLY
         GameServerFullMap                   = 100,
@@ -183,6 +184,7 @@ namespace Proto {
 
         // NOTE: add any custom opcodes in this range
         // 51 - 99
+        ClientDash                          = 51,
 
         // original tibia ONLY
         ClientAutoWalk                      = 100,

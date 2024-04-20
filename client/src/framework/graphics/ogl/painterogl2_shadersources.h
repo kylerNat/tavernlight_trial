@@ -65,6 +65,16 @@ static const std::string glslTextureSrcFragmentShader = "\n\
         return texture2D(u_Tex0, v_TexCoord) * u_Color;\n\
     }\n";
 
+static const std::string glslDashSrcFragmentShader = "\n\
+    varying mediump vec2 v_TexCoord;\n\
+    uniform lowp vec4 u_Color;\n\
+    uniform sampler2D u_Tex0;\n\
+    lowp vec4 calculatePixel() {\n\
+        float glow = texture2D(u_Tex0, v_TexCoord, 1.5).a;\n\
+        glow = smoothstep(0.0, 0.3, glow);\n\
+        return vec4(1.0,0.0,0.0,0.8)*glow;\n\
+    }\n";
+
 static const std::string glslSolidColorFragmentShader = "\n\
     uniform lowp vec4 u_Color;\n\
     lowp vec4 calculatePixel() {\n\

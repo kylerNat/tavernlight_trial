@@ -951,6 +951,11 @@ class Player final : public Creature, public Cylinder
 				client->sendMagicEffect(pos, type);
 			}
 		}
+		void sendCreatureEffect(const Creature* creature, uint8_t type, uint16_t duration) const {
+			if (client) {
+				client->sendCreatureEffect(creature, type, duration);
+			}
+		}
 		void sendPing();
 		void sendPingBack() const {
 			if (client) {

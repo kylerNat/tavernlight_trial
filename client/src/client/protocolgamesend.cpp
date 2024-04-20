@@ -286,6 +286,13 @@ void ProtocolGame::sendTurnWest()
     send(msg);
 }
 
+void ProtocolGame::sendDash()
+{
+    OutputMessagePtr msg(new OutputMessage);
+    msg->addU8(Proto::ClientDash);
+    send(msg);
+}
+
 void ProtocolGame::sendEquipItem(int itemId, int countOrSubType)
 {
     OutputMessagePtr msg(new OutputMessage);

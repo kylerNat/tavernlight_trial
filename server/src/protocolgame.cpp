@@ -506,6 +506,7 @@ void ProtocolGame::parsePacket(NetworkMessage& msg)
 		case 0x1D: addGameTask(&Game::playerReceivePingBack, player->getID()); break;
 		case 0x1E: addGameTask(&Game::playerReceivePing, player->getID()); break;
 		case 0x32: parseExtendedOpcode(msg); break; //otclient extended opcode
+		case 0x33: addGameTask(&Game::playerDash, player->getID()); break;
 		case 0x64: parseAutoWalk(msg); break;
 		case 0x65: addGameTask(&Game::playerMove, player->getID(), DIRECTION_NORTH); break;
 		case 0x66: addGameTask(&Game::playerMove, player->getID(), DIRECTION_EAST); break;
@@ -2236,6 +2237,19 @@ void ProtocolGame::sendCreatureSay(const Creature* creature, SpeakClasses type, 
 	}
 
 	msg.addString(text);
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendCreatureEffect(const Creature* creature, uint8_t type, uint16_t duration)
+{
+	if (!canSee(creature)) {
+		return;
+	}
+	NetworkMessage msg;
+	msg.addByte(0x34);
+	msg.add<uint32_t>(creature->getID());
+	msg.addByte(type);
+	msg.add<uint16_t>(duration);
 	writeToOutputBuffer(msg);
 }
 

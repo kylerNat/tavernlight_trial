@@ -54,6 +54,7 @@ public:
     void sendTurnEast();
     void sendTurnSouth();
     void sendTurnWest();
+    void sendDash();
     void sendEquipItem(int itemId, int countOrSubType);
     void sendMove(const Position& fromPos, int thingId, int stackpos, const Position& toPos, int count);
     void sendInspectNpcTrade(int itemId, int count);
@@ -242,6 +243,7 @@ private:
     void parseExtendedOpcode(const InputMessagePtr& msg);
     void parseChangeMapAwareRange(const InputMessagePtr& msg);
     void parseCreaturesMark(const InputMessagePtr& msg);
+    void parseCreatureEffect(const InputMessagePtr& msg);
 
 public:
     void setMapDescription(const InputMessagePtr& msg, int x, int y, int z, int width, int height);

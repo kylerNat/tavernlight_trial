@@ -773,6 +773,14 @@ void Game::turn(Otc::Direction direction)
     }
 }
 
+void Game::dash()
+{
+    if(!canPerformGameAction())
+        return;
+
+    m_protocolGame->sendDash();
+}
+
 void Game::stop()
 {
     if(!canPerformGameAction())

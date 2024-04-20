@@ -37,6 +37,7 @@ enum cylinderflags_t {
 	FLAG_IGNOREFIELDDAMAGE = 1 << 5, //Bypass field damage checks
 	FLAG_IGNORENOTMOVEABLE = 1 << 6, //Bypass check for mobility
 	FLAG_IGNOREAUTOSTACK = 1 << 7, //queryDestination will not try to stack items together
+	FLAG_FORCETELEPORT = 1 << 8, //Will force the movment to be a teleport
 };
 
 enum cylinderlink_t {

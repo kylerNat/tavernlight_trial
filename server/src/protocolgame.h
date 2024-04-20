@@ -185,6 +185,7 @@ class ProtocolGame final : public Protocol
 		void sendPingBack();
 		void sendCreatureTurn(const Creature* creature, uint32_t stackPos);
 		void sendCreatureSay(const Creature* creature, SpeakClasses type, const std::string& text, const Position* pos = nullptr);
+		void sendCreatureEffect(const Creature* creature, uint8_t type, uint16_t duration);
 
 		void sendQuestLog();
 		void sendQuestLine(const Quest* quest);

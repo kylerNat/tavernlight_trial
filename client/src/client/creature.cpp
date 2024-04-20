@@ -30,6 +30,7 @@
 #include "effect.h"
 #include "luavaluecasts.h"
 #include "lightview.h"
+#include "shadermanager.h"
 
 #include <framework/graphics/graphics.h>
 #include <framework/core/eventdispatcher.h>
@@ -82,6 +83,12 @@ void Creature::draw(const Point& dest, float scaleFactor, bool animate, LightVie
         g_painter->setColor(Color::white);
     }
 
+    if(m_effect == 1) {        
+        //the glow needs to be drawn separately since each body part is drawn individually
+        g_painter->setShaderProgram(g_shaders.getShader("Dash"));
+        internalDrawOutfit(dest + animationOffset * scaleFactor, scaleFactor, animate, animate, m_direction);
+        g_painter->resetShaderProgram();
+    }
     internalDrawOutfit(dest + animationOffset * scaleFactor, scaleFactor, animate, animate, m_direction);
     m_footStepDrawn = true;
 
@@ -102,9 +109,9 @@ void Creature::draw(const Point& dest, float scaleFactor, bool animate, LightVie
     }
 }
 
-void Creature::internalDrawOutfit(Point dest, float scaleFactor, bool animateWalk, bool animateIdle, Otc::Direction direction, LightView *lightView)
+void Creature::internalDrawOutfit(Point dest, float scaleFactor, bool animateWalk, bool animateIdle, Otc::Direction direction, LightView *lightView, float colorMultiplier /* = 1.0f*/)
 {
-    g_painter->setColor(m_outfitColor);
+    g_painter->setColor(m_outfitColor*colorMultiplier);
 
     // outfit is a real creature
     if(m_outfit.getCategory() == ThingCategoryCreature) {
@@ -150,13 +157,13 @@ void Creature::internalDrawOutfit(Point dest, float scaleFactor, bool animateWal
                 Color oldColor = g_painter->getColor();
                 Painter::CompositionMode oldComposition = g_painter->getCompositionMode();
                 g_painter->setCompositionMode(Painter::CompositionMode_Multiply);
-                g_painter->setColor(m_outfit.getHeadColor());
+                g_painter->setColor(m_outfit.getHeadColor() * colorMultiplier);
                 datType->draw(dest, scaleFactor, SpriteMaskYellow, xPattern, yPattern, zPattern, animationPhase);
-                g_painter->setColor(m_outfit.getBodyColor());
+                g_painter->setColor(m_outfit.getBodyColor() * colorMultiplier);
                 datType->draw(dest, scaleFactor, SpriteMaskRed, xPattern, yPattern, zPattern, animationPhase);
-                g_painter->setColor(m_outfit.getLegsColor());
+                g_painter->setColor(m_outfit.getLegsColor() * colorMultiplier);
                 datType->draw(dest, scaleFactor, SpriteMaskGreen, xPattern, yPattern, zPattern, animationPhase);
-                g_painter->setColor(m_outfit.getFeetColor());
+                g_painter->setColor(m_outfit.getFeetColor() * colorMultiplier);
                 datType->draw(dest, scaleFactor, SpriteMaskBlue, xPattern, yPattern, zPattern, animationPhase);
                 g_painter->setColor(oldColor);
                 g_painter->setCompositionMode(oldComposition);
@@ -322,6 +329,40 @@ void Creature::drawInformation(const Point& point, bool useGray, const Rect& par
     }
 }
 
+bool Creature::drawEffect(const Point& tilePos, const Point& dest, float scaleFactor, bool animate)
+{
+    if(!canBeSeen())
+        return false;
+
+    bool effectActive = false;
+
+    Point animationOffset = animate ? m_walkOffset : Point(0, 0);
+
+    //we filter which parts are drawn to be inside the tile's square, so that we don't double draw
+    Point lower = tilePos - Point(0.5f * scaleFactor * Otc::TILE_PIXELS, 0.5f * scaleFactor * Otc::TILE_PIXELS);
+    Point upper = tilePos + Point(0.5f * scaleFactor * Otc::TILE_PIXELS, 0.5f * scaleFactor * Otc::TILE_PIXELS);
+
+    if(m_effect == 1) {
+        Position dir = Position(0, 0, 0).translatedToReverseDirection(m_direction);
+        const float spacing = 16.0f;
+        for(int i = 0; i < 4; i++) {
+            //we want to switch directions depending on the direction of dir for depth sorting
+            int j = (dir.x + dir.y < 0) ? (4 - i) : (1 + i);
+            Point pos = dest + (animationOffset + Point(spacing * j * dir.x, spacing * j * dir.y)) * scaleFactor;
+
+            if(lower <= pos && pos < upper) {
+                float alpha = 1.0f - 0.1f * j;
+                g_painter->setOpacity(alpha);
+                internalDrawOutfit(pos, scaleFactor, animate, animate, m_direction, nullptr, alpha);
+                g_painter->resetOpacity();
+            }
+        }
+        effectActive = true;
+    }
+
+    return effectActive;
+}
+
 void Creature::turn(Otc::Direction direction)
 {
     // if is not walking change the direction right away
@@ -426,6 +467,12 @@ void Creature::updateJump()
 void Creature::onPositionChange(const Position& newPos, const Position& oldPos)
 {
     callLuaField("onPositionChange", newPos, oldPos);
+    
+    auto self = static_self_cast<Creature>();
+    //delay updating effect tiles since during a teleport the position change happens before the next tile is remade
+    g_dispatcher.scheduleEvent([self]() {
+        self->updateEffectTiles();
+        }, 0);
 }
 
 void Creature::onAppear()
@@ -452,6 +499,7 @@ void Creature::onAppear()
         callLuaField("onDisappear");
         callLuaField("onAppear");
     } // else turn
+    updateEffectTiles();
 }
 
 void Creature::onDisappear()
@@ -821,6 +869,37 @@ void Creature::addTimedSquare(uint8 color)
     g_dispatcher.scheduleEvent([self]() {
         self->removeTimedSquare();
     }, VOLATILE_SQUARE_DURATION);
+}
+
+void Creature::setEffect(uint8 type, int32 duration)
+{
+    m_effect = type;
+
+    // schedule removal
+    auto self = static_self_cast<Creature>();
+    if(m_effectRemoveEvent) { //if there is already an removal event cancel it
+        m_effectRemoveEvent->cancel();
+    }
+    m_effectRemoveEvent = g_dispatcher.scheduleEvent([self]() {
+        self->removeEffect();
+    }, duration);
+    updateEffectTiles();
+}
+
+//the creature effect is atttached to tiles so that depth sorting can happen correctly
+void Creature::updateEffectTiles()
+{
+    if(m_effect == 1) {
+        Position pos = m_position;
+        auto self = static_self_cast<Creature>();
+        for(int i = 0; i < 3; i++) {
+            TilePtr tile = g_map.getOrCreateTile(pos);
+            if(tile) {
+                tile->addCreatureEffect(self);
+            }
+            pos = pos.translatedToReverseDirection(m_direction);
+        }
+    }
 }
 
 void Creature::updateShield()

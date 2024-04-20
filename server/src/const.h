@@ -116,6 +116,12 @@ enum MagicEffectClasses : uint8_t {
 	CONST_ME_PLUNGING_FISH = 175,
 };
 
+enum CreatureEffectClasses : uint8_t {
+	CONST_CE_NONE,
+
+	CONST_CE_DASH = 1,
+};
+
 enum ShootType_t : uint8_t {
 	CONST_ANI_NONE,
 

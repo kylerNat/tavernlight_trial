@@ -112,6 +112,7 @@ public:
     int getElevation() const;
     bool hasElevation(int elevation = 1);
     void overwriteMinimapColor(uint8 color) { m_minimapColor = color; }
+    void addCreatureEffect(CreaturePtr creature);
 
     void remFlag(uint32 flag) { m_flags &= ~flag; }
     void setFlag(uint32 flag) { m_flags |= flag; }
@@ -134,6 +135,7 @@ private:
 
     std::vector<CreaturePtr> m_walkingCreatures;
     std::vector<EffectPtr> m_effects; // leave this outside m_things because it has no stackpos.
+    std::vector<CreaturePtr> m_creatureEffects; // a list of creatures that are drawing creature effects on this tile
     std::vector<ThingPtr> m_things;
     Position m_position;
     uint8 m_drawElevation;

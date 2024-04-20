@@ -29,15 +29,15 @@ function init()
     onLoginAdvice = onLoginAdvice,
   }, true)
 
-  -- Call load AFTER game window has been created and 
-  -- resized to a stable state, otherwise the saved 
+  -- Call load AFTER game window has been created and
+  -- resized to a stable state, otherwise the saved
   -- settings can get overridden by false onGeometryChange
   -- events
   connect(g_app, {
     onRun = load,
     onExit = save
   })
-  
+
   gameRootPanel = g_ui.displayUI('gameinterface')
   gameRootPanel:hide()
   gameRootPanel:lower()
@@ -95,6 +95,16 @@ function bindKeys()
   bindTurnKey('Ctrl+Numpad6', East)
   bindTurnKey('Ctrl+Numpad2', South)
   bindTurnKey('Ctrl+Numpad4', West)
+
+  local function dash_callback(widget, code, repeatTicks)
+      -- reusing the turn delay and timer so we don't exceed the rate limit
+      -- I don't see a reason to have a seperate timer
+      if g_clock.millis() - lastDirTime >= modules.client_options.getOption('turnDelay') then
+          g_game.dash()
+          lastDirTime = g_clock.millis()
+      end
+  end
+  g_keyboard.bindKeyPress('Ctrl+D', dash_callback, gameRootPanel)
 
   g_keyboard.bindKeyPress('Escape', function() g_game.cancelAttackAndFollow() end, gameRootPanel)
   g_keyboard.bindKeyPress('Ctrl+=', function() gameMapPanel:zoomIn() end, gameRootPanel)
@@ -626,7 +636,7 @@ function createThingMenu(menuPosition, lookThing, useThing, creatureThing)
       menu:addSeparator()
       for name,opt in pairs(category) do
         if opt and opt.condition(menuPosition, lookThing, useThing, creatureThing) then
-          menu:addOption(name, function() opt.callback(menuPosition, 
+          menu:addOption(name, function() opt.callback(menuPosition,
             lookThing, useThing, creatureThing) end, opt.shortcut)
         end
       end

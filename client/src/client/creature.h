@@ -43,12 +43,13 @@ public:
     };
 
     Creature();
-
+    
     virtual void draw(const Point& dest, float scaleFactor, bool animate, LightView *lightView = nullptr);
 
-    void internalDrawOutfit(Point dest, float scaleFactor, bool animateWalk, bool animateIdle, Otc::Direction direction, LightView *lightView = nullptr);
+    void internalDrawOutfit(Point dest, float scaleFactor, bool animateWalk, bool animateIdle, Otc::Direction direction, LightView *lightView = nullptr, float colorMultiplier = 1.0f);
     void drawOutfit(const Rect& destRect, bool resize);
     void drawInformation(const Point& point, bool useGray, const Rect& parentRect, int drawFlags);
+    bool drawEffect(const Point& tilePos, const Point& dest, float scaleFactor, bool animate);
 
     void setId(uint32 id) { m_id = id; }
     void setName(const std::string& name);
@@ -71,9 +72,13 @@ public:
     void setIconTexture(const std::string& filename);
     void setPassable(bool passable) { m_passable = passable; }
     void setSpeedFormula(double speedA, double speedB, double speedC);
-
+    
     void addTimedSquare(uint8 color);
     void removeTimedSquare() { m_showTimedSquare = false; }
+    
+    void setEffect(uint8 type, int32 duration);
+    void removeEffect() { m_effect = 0; }
+    void updateEffectTiles();
 
     void showStaticSquare(const Color& color) { m_showStaticSquare = true; m_staticSquareColor = color; }
     void hideStaticSquare() { m_showStaticSquare = false; }
@@ -158,6 +163,8 @@ protected:
     uint8 m_emblem;
     uint8 m_type;
     uint8 m_icon;
+    uint8 m_effect;
+    ScheduledEventPtr m_effectRemoveEvent;
     TexturePtr m_skullTexture;
     TexturePtr m_shieldTexture;
     TexturePtr m_emblemTexture;

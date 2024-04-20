@@ -237,6 +237,7 @@ class Game
 		}
 		void updateWorldLightLevel();
 
+		bool checkVerticalMovement(Position currentPos, Position& destPos, uint32_t& flags);
 		ReturnValue internalMoveCreature(Creature* creature, Direction direction, uint32_t flags = 0);
 		ReturnValue internalMoveCreature(Creature& creature, Tile& toTile, uint32_t flags = 0);
 
@@ -386,6 +387,8 @@ class Game
 		void playerRequestRemoveVip(uint32_t playerId, uint32_t guid);
 		void playerRequestEditVip(uint32_t playerId, uint32_t guid, const std::string& description, uint32_t icon, bool notify);
 		void playerTurn(uint32_t playerId, Direction dir);
+		void playerDashStep(uint32_t playerId, uint32_t stepCount, uint32_t stepDistance);
+		void playerDash(uint32_t playerId);
 		void playerRequestOutfit(uint32_t playerId);
 		void playerShowQuestLog(uint32_t playerId);
 		void playerShowQuestLine(uint32_t playerId, uint16_t questId);

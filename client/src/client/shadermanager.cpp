@@ -38,6 +38,8 @@ void ShaderManager::init()
 
     m_defaultMapShader = createFragmentShaderFromCode("Map", glslMainFragmentShader + glslTextureSrcFragmentShader);
 
+    createFragmentShaderFromCode("Dash", glslMainFragmentShader + glslDashSrcFragmentShader);
+
     PainterShaderProgram::release();
 }
 
