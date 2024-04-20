@@ -1,0 +1,9 @@
+Module
+  name: game_jumpwindow
+  description: A window with a scrolling Jump! button
+  author: Kyler
+  website:
+  sandboxed: true
+  scripts: [ jumpwindow ]
+  @onLoad: init()
+  @onUnload: terminate()

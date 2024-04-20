@@ -1,0 +1,16 @@
+MainWindow
+  id: jumpWindow
+  size: 270 265
+
+  Label
+    id: jumpLabel
+    anchors.top: prev.top
+    anchors.left: prev.left
+    margin-top: 5
+    margin-left: 5
+
+  Button
+    id: jumpButton
+    !text: tr('Jump!')
+    width: 45
+    @onClick: modules.game_jumpwindow.resetJumpButton()
