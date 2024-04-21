@@ -76,7 +76,7 @@ function resetJumpButton()
     local width = jumpWindow:getWidth()
     local height = jumpWindow:getHeight()
     local x = wx + width - buttonWidth - paddingRight
-    local y = wy + math.random(margin + paddingTop, height - buttonHeight - paddingBottom)
+    local y = wy + math.random(paddingTop, height - buttonHeight - paddingBottom)
     jumpButton:setX(x)
     jumpButton:setY(y)
 end
