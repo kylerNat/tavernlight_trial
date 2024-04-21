@@ -1,4 +1,4 @@
-function removeFromPlayerPartyByName(playerId, membername)
+function playerPartyRemoveByName(playerId, membername)
     local player = Player(playerId)
     local party = player:getParty()
 
